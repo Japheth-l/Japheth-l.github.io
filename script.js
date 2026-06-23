@@ -1,150 +1,112 @@
-/* =============================================
-   NAV — scroll behaviour & mobile menu
-============================================= */
-const navbar = document.getElementById('navbar');
-const burger = document.getElementById('burger');
-const mobileMenu = document.getElementById('mobileMenu');
+// ── Footer year ───────────────────────────────────────────────────────────────
+document.getElementById('year').textContent = new Date().getFullYear();
 
-window.addEventListener('scroll', () => {
-  if (window.scrollY > 20) {
-    navbar.classList.add('scrolled');
-  } else {
-    navbar.classList.remove('scrolled');
-  }
-}, { passive: true });
+// ── Terminal typing effect ────────────────────────────────────────────────────
+const target = document.getElementById('terminalText');
 
-burger.addEventListener('click', () => {
-  mobileMenu.classList.toggle('open');
-});
+const lines = [
+  { text: '$ curl https://japheth-l-github-io.onrender.com/api/me', pause: 500 },
+  { text: '', pause: 150 },
+  { text: '{', pause: 80 },
+  { text: '  "name": "Japheth Mwinekpieng Lamuo",', pause: 80 },
+  { text: '  "role": "Backend Developer",', pause: 80 },
+  { text: '  "location": "Accra, Ghana",', pause: 80 },
+  { text: '  "stack": ["Node.js", "Express", "MongoDB"],', pause: 80 },
+  { text: '  "status": "open_to_work"', pause: 80 },
+  { text: '}', pause: 80 },
+];
 
-// Close mobile menu when a link is clicked
-mobileMenu.querySelectorAll('a').forEach(link => {
-  link.addEventListener('click', () => {
-    mobileMenu.classList.remove('open');
-  });
-});
+const reduceMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
 
-/* =============================================
-   SCROLL REVEAL
-============================================= */
-const revealEls = document.querySelectorAll('.reveal');
-
-const observer = new IntersectionObserver((entries) => {
-  entries.forEach((entry, i) => {
-    if (entry.isIntersecting) {
-      // Stagger cards within the same parent
-      const siblings = Array.from(entry.target.parentElement.querySelectorAll('.reveal'));
-      const index = siblings.indexOf(entry.target);
-      setTimeout(() => {
-        entry.target.classList.add('visible');
-      }, index * 80);
-      observer.unobserve(entry.target);
-    }
-  });
-}, { threshold: 0.1, rootMargin: '0px 0px -40px 0px' });
-
-revealEls.forEach(el => observer.observe(el));
-
-/* =============================================
-   CONTACT FORM — validation & mailto fallback
-============================================= */
-const form = document.getElementById('contactForm');
-const submitBtn = document.getElementById('submitBtn');
-const formStatus = document.getElementById('formStatus');
-
-function validateField(id, errorId, message) {
-  const field = document.getElementById(id);
-  const error = document.getElementById(errorId);
-  const value = field.value.trim();
-
-  if (!value) {
-    field.classList.add('error');
-    error.textContent = message;
-    return false;
-  }
-
-  if (id === 'email') {
-    const emailRe = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-    if (!emailRe.test(value)) {
-      field.classList.add('error');
-      error.textContent = 'Enter a valid email address.';
-      return false;
-    }
-  }
-
-  field.classList.remove('error');
-  error.textContent = '';
-  return true;
+function renderInstantly() {
+  target.textContent = lines.map(l => l.text).join('\n');
 }
 
-// Clear error on input
-['name', 'email', 'subject', 'message'].forEach(id => {
-  document.getElementById(id).addEventListener('input', () => {
-    document.getElementById(id).classList.remove('error');
-    const errEl = document.getElementById(id + 'Error');
-    if (errEl) errEl.textContent = '';
-    formStatus.textContent = '';
-    formStatus.className = 'form-note';
+async function typeLines() {
+  for (const line of lines) {
+    await typeLine(line.text);
+    target.textContent += '\n';
+    await wait(line.pause);
+  }
+}
+
+function typeLine(text) {
+  return new Promise(resolve => {
+    let i = 0;
+    if (text.length === 0) { resolve(); return; }
+    const interval = setInterval(() => {
+      target.textContent += text[i];
+      i++;
+      if (i >= text.length) {
+        clearInterval(interval);
+        resolve();
+      }
+    }, 14);
   });
-});
+}
 
-form.addEventListener('submit', (e) => {
-  e.preventDefault();
+function wait(ms) {
+  return new Promise(resolve => setTimeout(resolve, ms));
+}
 
-  const validName    = validateField('name',    'nameError',    'Name is required.');
-  const validEmail   = validateField('email',   'emailError',   'Email is required.');
-  const validSubject = validateField('subject', 'subjectError', 'Subject is required.');
-  const validMsg     = validateField('message', 'messageError', 'Message is required.');
+if (reduceMotion) {
+  renderInstantly();
+} else {
+  typeLines();
+}
 
-  if (!validName || !validEmail || !validSubject || !validMsg) return;
+// ── Contact form → microservice ───────────────────────────────────────────────
+const CONTACT_API = 'https://japheth-l-github-io.onrender.com/contact';
 
-  const name    = document.getElementById('name').value.trim();
-  const email   = document.getElementById('email').value.trim();
-  const subject = document.getElementById('subject').value.trim();
-  const message = document.getElementById('message').value.trim();
+const nameInput    = document.getElementById('cf-name');
+const emailInput   = document.getElementById('cf-email');
+const messageInput = document.getElementById('cf-message');
+const submitBtn    = document.getElementById('cf-submit');
+const statusEl     = document.getElementById('cf-status');
 
-  // Build a mailto link as the delivery mechanism
-  // (replace with a real backend/Formspree endpoint when ready)
-  const body = encodeURIComponent(
-    `Name: ${name}\nEmail: ${email}\n\n${message}`
-  );
-  const mailto = `mailto:lamuojapheth@gmail.com?subject=${encodeURIComponent(subject)}&body=${body}`;
+function setStatus(text, type) {
+  statusEl.textContent = text;
+  statusEl.className   = 'cf-status ' + type;
+}
 
-  // Open the mailto link
-  window.location.href = mailto;
+submitBtn.addEventListener('click', async () => {
+  const name    = nameInput.value.trim();
+  const email   = emailInput.value.trim();
+  const message = messageInput.value.trim();
 
-  // Show success feedback
-  formStatus.textContent = '✓ Opening your email client…';
-  formStatus.className = 'form-note success';
-  submitBtn.textContent = 'Sent!';
-  submitBtn.style.opacity = '0.7';
+  // Client-side guard (server validates too)
+  if (!name || !email || !message) {
+    setStatus('Please fill in all fields.', 'error');
+    return;
+  }
 
-  setTimeout(() => {
-    form.reset();
-    submitBtn.textContent = 'Send Message';
-    submitBtn.style.opacity = '';
-    formStatus.textContent = '';
-    formStatus.className = 'form-note';
-  }, 3500);
-});
+  submitBtn.disabled    = true;
+  submitBtn.textContent = 'Sending...';
+  setStatus('', '');
 
-/* =============================================
-   ACTIVE NAV LINK — highlight on scroll
-============================================= */
-const sections = document.querySelectorAll('section[id]');
-const navAnchors = document.querySelectorAll('.nav-links li a[href^="#"]');
+  try {
+    const res = await fetch(CONTACT_API, {
+      method:  'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body:    JSON.stringify({ name, email, message }),
+    });
 
-window.addEventListener('scroll', () => {
-  let current = '';
-  sections.forEach(sec => {
-    const top = sec.offsetTop - 100;
-    if (window.scrollY >= top) current = sec.getAttribute('id');
-  });
+    const data = await res.json();
 
-  navAnchors.forEach(a => {
-    a.style.color = '';
-    if (a.getAttribute('href') === `#${current}`) {
-      a.style.color = 'var(--white)';
+    if (res.ok && data.success) {
+      setStatus('Message sent! I\'ll be in touch soon.', 'success');
+      nameInput.value    = '';
+      emailInput.value   = '';
+      messageInput.value = '';
+    } else {
+      const msg = data.errors ? data.errors.join(' · ') : (data.message || 'Something went wrong.');
+      setStatus(msg, 'error');
     }
-  });
-}, { passive: true });
+  } catch (err) {
+    console.error('Contact fetch error:', err);
+    setStatus('Network error. Please email me directly at lamuojapheth@gmail.com', 'error');
+  } finally {
+    submitBtn.disabled    = false;
+    submitBtn.textContent = 'Send message';
+  }
+});
